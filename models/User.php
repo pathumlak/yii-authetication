@@ -2,73 +2,58 @@
 
 namespace app\models;
 
-class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
+use Yii;
+use yii\db\ActiveRecord;  // Ensure ActiveRecord is imported
+
+/**
+ * User model.
+ */
+class User extends ActiveRecord implements \yii\web\IdentityInterface
 {
-    public $id;
-    public $username;
-    public $password;
-    public $authKey;
-    public $accessToken;
-
-    private static $users = [
-        '100' => [
-            'id' => '100',
-            'username' => 'admin',
-            'password' => 'admin',
-            'authKey' => 'test100key',
-            'accessToken' => '100-token',
-        ],
-        '101' => [
-            'id' => '101',
-            'username' => 'demo',
-            'password' => 'demo',
-            'authKey' => 'test101key',
-            'accessToken' => '101-token',
-        ],
-    ];
-
+    const ROLE_USER = 'user';
+    const ROLE_ADMIN = 'admin';
 
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
-    public static function findIdentity($id)
+    public static function tableName()
     {
-        return isset(self::$users[$id]) ? new static(self::$users[$id]) : null;
+        return '{{%user}}';  // Define the table name
     }
 
     /**
-     * {@inheritdoc}
+     * Finds identity by id
+     * @param int $id the user ID
+     * @return static|null
+     */
+    public static function findIdentity($id)
+    {
+        return static::findOne($id);
+    }
+
+    /**
+     * Finds identity by access token
+     * @param string $token the access token
+     * @param string $type
+     * @return static|null
      */
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        foreach (self::$users as $user) {
-            if ($user['accessToken'] === $token) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        return static::findOne(['accessToken' => $token]);
     }
 
     /**
      * Finds user by username
-     *
      * @param string $username
      * @return static|null
      */
     public static function findByUsername($username)
     {
-        foreach (self::$users as $user) {
-            if (strcasecmp($user['username'], $username) === 0) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        return static::findOne(['username' => $username]);
     }
 
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
     public function getId()
     {
@@ -76,7 +61,7 @@ class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
     }
 
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
     public function getAuthKey()
     {
@@ -84,7 +69,7 @@ class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
     }
 
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
     public function validateAuthKey($authKey)
     {
@@ -93,12 +78,41 @@ class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
 
     /**
      * Validates password
-     *
      * @param string $password password to validate
      * @return bool if password provided is valid for current user
      */
     public function validatePassword($password)
     {
-        return $this->password === $password;
+        return $this->password === $password;  // Password validation should use hashing for security
+    }
+
+    /**
+     * Creates a new user
+     * @return bool whether the user was saved successfully
+     */
+    public function saveUser()
+    {
+        return $this->save();  // The save method is now available as ActiveRecord is extended
+    }
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            if ($this->isNewRecord) {
+                // Hash the password before saving it
+                $this->password = Yii::$app->security->generatePasswordHash($this->password);
+            }
+            return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * Get the user's role
+     * @return string
+     */
+    public function getRole()
+    {
+        return $this->role;
     }
 }

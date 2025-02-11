@@ -4,6 +4,7 @@ namespace app\models;
 
 use Yii;
 use yii\base\Model;
+use app\models\User;
 
 /**
  * LoginForm is the model behind the login form.
@@ -18,7 +19,6 @@ class LoginForm extends Model
     public $rememberMe = true;
 
     private $_user = false;
-
 
     /**
      * @return array the validation rules.
@@ -47,7 +47,8 @@ class LoginForm extends Model
         if (!$this->hasErrors()) {
             $user = $this->getUser();
 
-            if (!$user || !$user->validatePassword($this->password)) {
+            // Check if user exists and validate password using password_hash
+            if (!$user || !Yii::$app->security->validatePassword($this->password, $user->password)) {
                 $this->addError($attribute, 'Incorrect username or password.');
             }
         }
@@ -60,7 +61,18 @@ class LoginForm extends Model
     public function login()
     {
         if ($this->validate()) {
-            return Yii::$app->user->login($this->getUser(), $this->rememberMe ? 3600*24*30 : 0);
+            // Get the user object
+            $user = $this->getUser();
+
+            // Log the user in
+            if (Yii::$app->user->login($user, $this->rememberMe ? 3600 * 24 * 30 : 0)) {
+                // Redirect to dashboard based on user role
+                if ($user->getRole() === User::ROLE_ADMIN) {
+                    return Yii::$app->response->redirect(['admin/dashboard']); // Redirect to admin dashboard
+                } else {
+                    return Yii::$app->response->redirect(['site/index']); // Redirect to site index for regular users
+                }
+            }
         }
         return false;
     }

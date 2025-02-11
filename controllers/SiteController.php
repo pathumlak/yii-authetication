@@ -9,35 +9,54 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
+use app\models\RegisterForm;
 
 class SiteController extends Controller
 {
     /**
      * {@inheritdoc}
      */
+
     public function behaviors()
     {
         return [
+            // Access Control: Control access to actions based on roles
             'access' => [
                 'class' => AccessControl::class,
-                'only' => ['logout'],
+                'only' => ['logout', 'dashboard', 'users', 'edit'],  // Specify actions to control access for
                 'rules' => [
                     [
-                        'actions' => ['logout'],
+                        'actions' => ['logout'],  // Allow authenticated users to log out
                         'allow' => true,
-                        'roles' => ['@'],
+                        'roles' => ['@'],  // Only authenticated users (logged in) can log out
+                    ],
+                    [
+                        'actions' => ['dashboard'],  // Only allow admins to access the dashboard
+                        'allow' => true,
+                        'roles' => ['admin'],  // Only users with the 'admin' role can access the dashboard
+                    ],
+                    [
+                        'actions' => ['users', 'edit'],  // Allow admins to manage users
+                        'allow' => true,
+                        'roles' => ['admin'],  // Only admins can view and manage users
+                    ],
+                    [
+                        'actions' => ['index', 'about', 'contact'],  // Public pages can be accessed by anyone
+                        'allow' => true,
+                        'roles' => ['?'],  // This allows guests to access these actions
                     ],
                 ],
             ],
+            // VerbFilter: Restrict HTTP methods for actions
             'verbs' => [
                 'class' => VerbFilter::class,
                 'actions' => [
-                    'logout' => ['post'],
+                    'logout' => ['post'],  // Only allow POST request for logout
+                    'delete' => ['post'],  // Only allow POST request for delete
                 ],
             ],
         ];
     }
-
     /**
      * {@inheritdoc}
      */
@@ -124,5 +143,19 @@ class SiteController extends Controller
     public function actionAbout()
     {
         return $this->render('about');
+    }
+
+    public function actionRegister()
+    {
+        $model = new RegisterForm();
+
+        if ($model->load(Yii::$app->request->post()) && $model->register()) {
+            Yii::$app->session->setFlash('success', 'Registration successful!');
+            return $this->redirect(['site/login']);
+        }
+
+        return $this->render('register', [
+            'model' => $model,
+        ]);
     }
 }
